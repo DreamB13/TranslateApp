@@ -23,6 +23,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.dreamb.translateapp.ui.theme.TranslateAppTheme
+import com.google.mlkit.nl.translate.TranslateLanguage
 
 
 class MainActivity : ComponentActivity() {
@@ -54,16 +55,18 @@ fun MyApp(){
 
 
 @Composable
-fun TransLanguageMenu() {
+fun TransLanguageMenu(
+    selectedLanguage: String,
+    onLanguageChange: (String, String) -> Unit // 언어 이름과 TranslateLanguage 코드 전달
+) {
     var expandedLang by remember { mutableStateOf(false) }
-    var language by remember { mutableStateOf("한국어") }
+
     TextButton(
         onClick = { expandedLang = !expandedLang },
-        modifier = Modifier
-            .fillMaxWidth()
+        modifier = Modifier.fillMaxWidth()
     ) {
         Text(
-            language,
+            selectedLanguage,
             fontSize = 20.sp,
             color = Color.Black
         )
@@ -72,48 +75,23 @@ fun TransLanguageMenu() {
         expanded = expandedLang,
         onDismissRequest = { expandedLang = false }
     ) {
-        DropdownMenuItem(
-            text = { Text("한국어") },
-            onClick = {
-                language = "한국어"
-                expandedLang = false
-            }
+        val languageMap = mapOf(
+            "한국어" to TranslateLanguage.KOREAN,
+            "영어" to TranslateLanguage.ENGLISH,
+            "일본어" to TranslateLanguage.JAPANESE,
+            "중국어" to TranslateLanguage.CHINESE,
+            "프랑스어" to TranslateLanguage.FRENCH,
+            "독일어" to TranslateLanguage.GERMAN
         )
-        DropdownMenuItem(
-            text = { Text("영어") },
-            onClick = {
-                language = "영어"
-                expandedLang = false
-            }
-        )
-        DropdownMenuItem(
-            text = { Text("일본어") },
-            onClick = {
-                language = "일본어"
-                expandedLang = false
-            }
-        )
-        DropdownMenuItem(
-            text = { Text("중국어") },
-            onClick = {
-                language = "중국어"
-                expandedLang = false
-            }
-        )
-        DropdownMenuItem(
-            text = { Text("프랑스어") },
-            onClick = {
-                language = "프랑스어"
-                expandedLang = false
-            }
-        )
-        DropdownMenuItem(
-            text = { Text("독일어") },
-            onClick = {
-                language = "독일어"
-                expandedLang = false
-            }
-        )
+        languageMap.forEach { (languageName, languageCode) ->
+            DropdownMenuItem(
+                text = { Text(languageName) },
+                onClick = {
+                    onLanguageChange(languageName, languageCode) // 선택된 언어와 코드 전달
+                    expandedLang = false
+                }
+            )
+        }
     }
 }
 

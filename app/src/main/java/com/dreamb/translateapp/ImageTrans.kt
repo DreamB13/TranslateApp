@@ -1,20 +1,34 @@
 package com.dreamb.translateapp
 
+import android.content.ContentValues
+import android.content.Context
+import android.content.pm.PackageManager
+import android.net.Uri
+import android.provider.MediaStore
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.camera.core.ImageCapture
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.gestures.scrollable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.OutlinedTextField
@@ -37,16 +51,169 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import coil3.compose.rememberAsyncImagePainter
 import com.google.mlkit.common.model.DownloadConditions
 import com.google.mlkit.nl.languageid.LanguageIdentification
 import com.google.mlkit.nl.languageid.LanguageIdentificationOptions
 import com.google.mlkit.nl.translate.TranslateLanguage
 import com.google.mlkit.nl.translate.Translation
 import com.google.mlkit.nl.translate.TranslatorOptions
+import com.google.mlkit.vision.common.InputImage
+import com.google.mlkit.vision.text.TextRecognition
+import com.google.mlkit.vision.text.korean.KoreanTextRecognizerOptions
+import java.io.IOException
 
 @Preview(showBackground = true)
 @Composable
 fun ImageTrans() {
+    var text by remember { mutableStateOf("") }
+    var imageUri by remember { mutableStateOf<Uri?>(null) }
+    var outputText by remember { mutableStateOf("") }
+    var targetLang by remember { mutableStateOf("") }
+    var sourceLanguage by remember { mutableStateOf(TranslateLanguage.KOREAN) }
+    val context = LocalContext.current
+    var selectedLanguage by remember { mutableStateOf("한국어") }
+    var selectedLanguageCode by remember { mutableStateOf(TranslateLanguage.KOREAN) }
+    val translator = remember(sourceLanguage, selectedLanguageCode) {
+        val options = TranslatorOptions.Builder()
+            .setSourceLanguage(sourceLanguage)
+            .setTargetLanguage(selectedLanguageCode)
+            .build()
+        Translation.getClient(options)
+    }
+    val pickMedia =
+        rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+            if (uri != null) {
+                imageUri = uri
+            }
+        }
+    LaunchedEffect(imageUri) {
+        if (imageUri != null) {
+            val recognizer =
+                TextRecognition.getClient(KoreanTextRecognizerOptions.Builder().build())
+            try {
+                val image = InputImage.fromFilePath(context, imageUri!!)
+                recognizer.process(image)
+                    .addOnSuccessListener { result ->
+                        text = result.text
+                    }
+                    .addOnFailureListener { e ->
+                    }
+            } catch (e: IOException) {
+                e.printStackTrace()
+            }
+        }
+    }
+    val languageIdentifier = remember {
+        LanguageIdentification.getClient(
+            LanguageIdentificationOptions.Builder()
+                .setConfidenceThreshold(0.5f)
+                .build()
+        )
+    }
+    LaunchedEffect(imageUri) {
+        if (text.isNotEmpty()) {
+            languageIdentifier.identifyLanguage(text)
+                .addOnSuccessListener { languageCode ->
+                    when (languageCode) {
+                        "ko" -> {
+                            targetLang = "한국어"
+                            sourceLanguage = TranslateLanguage.KOREAN
+                        }
+
+                        "en" -> {
+                            targetLang = "영어"
+                            sourceLanguage = TranslateLanguage.ENGLISH
+                        }
+
+                        "ja" -> {
+                            targetLang = "일본어"
+                            sourceLanguage = TranslateLanguage.JAPANESE
+                        }
+
+                        "ja-Latn" -> {
+                            targetLang = "일본어"
+                            sourceLanguage = TranslateLanguage.JAPANESE
+                        }
+
+                        "zh" -> {
+                            targetLang = "중국어"
+                            sourceLanguage = TranslateLanguage.CHINESE
+                        }
+
+                        "zh-Latn" -> {
+                            targetLang = "중국어"
+                            sourceLanguage = TranslateLanguage.CHINESE
+                        }
+
+                        "de" -> {
+                            targetLang = "독일어"
+                            sourceLanguage = TranslateLanguage.GERMAN
+                        }
+
+                        "fr" -> {
+                            targetLang = "프랑스어"
+                            sourceLanguage = TranslateLanguage.FRENCH
+                        }
+
+                        else -> targetLang = "자동 감지"
+                    }
+                }
+                .addOnFailureListener {
+                    val toast = Toast.makeText(context, "모델을 불러올 수 없음.", Toast.LENGTH_SHORT)
+                    toast.show()
+                }
+        }
+    }
+
+
+    // Download translator model
+    LaunchedEffect(translator) {
+        val conditions = DownloadConditions.Builder().build()
+        translator.downloadModelIfNeeded(conditions)
+            .addOnSuccessListener {
+            }
+            .addOnFailureListener {
+            }
+    }
+
+    // Translate text whenever input text changes
+    LaunchedEffect(text, selectedLanguageCode) {
+        if (text.isNotEmpty()) {
+            translator.translate(text)
+                .addOnSuccessListener { translatedText ->
+                    outputText = translatedText
+                }
+                .addOnFailureListener {
+                }
+        } else {
+            outputText = ""
+        }
+    }
+
+    // Camera Launcher 설정
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            Toast.makeText(context, "카메라 권한 허용됨", Toast.LENGTH_SHORT).show()
+        } else {
+            Toast.makeText(context, "카메라 권한이 필요합니다.", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    val cameraLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicture(),
+        onResult = { success ->
+            if (success) {
+                Toast.makeText(context, "사진 저장 완료", Toast.LENGTH_SHORT).show()
+            } else {
+                Toast.makeText(context, "사진 촬영 실패", Toast.LENGTH_SHORT).show()
+            }
+        }
+    )
     Column(
         verticalArrangement = Arrangement.Top,
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -73,13 +240,17 @@ fun ImageTrans() {
                 modifier = Modifier
                     .weight(1f)
             ) {
-                Text(text = "한국어",
+                Text(
+                    text = targetLang,
                     fontSize = 20.sp,
                     textAlign = TextAlign.Center,
-                    modifier = Modifier.fillMaxWidth())
+                    modifier = Modifier.fillMaxWidth()
+                )
             }
             Button(
-                onClick = {},
+                onClick = {
+
+                },
                 border = BorderStroke(5.dp, Color.LightGray),
                 colors = ButtonDefaults.buttonColors(containerColor = Color.White),
                 modifier = Modifier
@@ -100,7 +271,13 @@ fun ImageTrans() {
                     .fillMaxWidth()
                     .weight(1.2f)
             ) {
-                TransLanguageMenu()
+                TransLanguageMenu(
+                    selectedLanguage = selectedLanguage,
+                    onLanguageChange = { languageName, languageCode ->
+                        selectedLanguage = languageName
+                        selectedLanguageCode = languageCode
+                    }
+                )
             }
             Box(
                 modifier = Modifier
@@ -110,23 +287,69 @@ fun ImageTrans() {
 
         }
         Box(
+            contentAlignment = Alignment.Center,
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(4f)
                 .background(color = Color.White)
-        ){
-
+                .border(width = 2.dp, shape = RoundedCornerShape(10.dp), color = Color.LightGray)
+        ) {
+            Image(
+                rememberAsyncImagePainter(imageUri),
+                contentDescription = null,
+                contentScale = ContentScale.Fit,
+            )
         }
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(4f)
                 .background(color = Color.White)
-        ){
+        ) {
+            Row {
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxSize()
+                        .border(
+                            width = 2.dp,
+                            shape = RoundedCornerShape(10.dp),
+                            color = Color.LightGray
+                        )
+                ) {
+                    Text(
+                        text = text,
+                        fontSize = 20.sp,
+                        modifier = Modifier
+                            .wrapContentHeight()
+                            .verticalScroll(rememberScrollState())
+                    )
+                }
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxSize()
+                        .border(
+                            width = 2.dp,
+                            shape = RoundedCornerShape(10.dp),
+                            color = Color.LightGray
+                        )
+                ) {
+                    Text(
+                        outputText,
+                        fontSize = 20.sp,
+                        modifier = Modifier
+                            .padding(10.dp)
+                            .verticalScroll(rememberScrollState())
+                    )
+                }
+            }
 
         }
         Button(
-            onClick = {},
+            onClick = {
+                pickMedia.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+            },
             colors = ButtonDefaults.buttonColors(containerColor = Color(0xff7777dd)),
             shape = RectangleShape,
             modifier = Modifier
@@ -135,20 +358,42 @@ fun ImageTrans() {
         ) {
             Column(
                 verticalArrangement = Arrangement.Center,
-                horizontalAlignment = Alignment.CenterHorizontally
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier
+                    .fillMaxHeight()
             ) {
                 Image(
                     painter = painterResource(R.drawable.photo_svgrepo_com),
                     contentDescription = "이미지",
                     modifier = Modifier
                         .size(40.dp)
+                        .weight(1f)
                 )
-                Text("이미지")
+                Text(
+                    "이미지",
+                    color = Color.White,
+                    modifier = Modifier.weight(0.5f)
+                )
             }
 
         }
         Button(
-            onClick = {},
+            onClick = {
+                if (ContextCompat.checkSelfPermission(
+                        context,
+                        android.Manifest.permission.CAMERA
+                    ) ==
+                    PackageManager.PERMISSION_GRANTED
+                ) {
+                    // 권한이 허용된 경우 카메라 실행
+                    val uri = createImageUri(context)
+                    cameraLauncher.launch(uri)
+                    imageUri = uri
+                } else {
+                    // 권한 요청
+                    permissionLauncher.launch(android.Manifest.permission.CAMERA)
+                }
+            },
             colors = ButtonDefaults.buttonColors(containerColor = Color(0xff4444cc)),
             shape = RectangleShape,
             modifier = Modifier
@@ -164,11 +409,27 @@ fun ImageTrans() {
                     contentDescription = "촬영",
                     modifier = Modifier
                         .size(50.dp)
+                        .weight(1f)
                 )
-                Text("카메라")
+                Text(
+                    "사진 촬영",
+                    color = Color.White,
+                    modifier = Modifier.weight(0.5f)
+                )
             }
 
         }
 
     }
+}
+
+// 이미지 Uri 생성 함수
+private fun createImageUri(context: Context): Uri {
+    val resolver = context.contentResolver
+    val contentValues = ContentValues().apply {
+        put(MediaStore.Images.Media.DISPLAY_NAME, "photo_${System.currentTimeMillis()}.jpg")
+        put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
+    }
+    return resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
+        ?: throw IllegalStateException("Failed to create new MediaStore record.")
 }

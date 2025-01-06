@@ -50,6 +50,40 @@ fun MainScreen(navController: NavController) {
     var targetLang by remember { mutableStateOf("") }
     var text by remember { mutableStateOf("") }
     var outputText by remember { mutableStateOf("") }
+    var sourceLanguage by remember { mutableStateOf("") }
+    var selectedLanguage by remember { mutableStateOf("한국어") }
+    var selectedLanguageCode by remember { mutableStateOf(TranslateLanguage.KOREAN) }
+    val translator = remember(sourceLanguage, selectedLanguageCode) {
+        val options = TranslatorOptions.Builder()
+            .setSourceLanguage(sourceLanguage)
+            .setTargetLanguage(selectedLanguageCode)
+            .build()
+        Translation.getClient(options)
+    }
+
+    // Download translator model
+    LaunchedEffect(translator) {
+        val conditions = DownloadConditions.Builder().build()
+        translator.downloadModelIfNeeded(conditions)
+            .addOnSuccessListener {
+            }
+            .addOnFailureListener {
+            }
+    }
+
+    // Translate text whenever input text changes
+    LaunchedEffect(text, selectedLanguageCode, selectedLanguage) {
+        if (text.isNotEmpty()) {
+            translator.translate(text)
+                .addOnSuccessListener { translatedText ->
+                    outputText = translatedText
+                }
+                .addOnFailureListener {
+                }
+        } else {
+            outputText = ""
+        }
+    }
 
 
     val languageIdentifier = remember {
@@ -65,16 +99,40 @@ fun MainScreen(navController: NavController) {
                 .addOnSuccessListener { identifiedLanguages ->
                     for (identifiedLanguage in identifiedLanguages) {
                         val language = identifiedLanguage.languageTag
-                        targetLang = when (language) {
-                            "ko" -> "한국어"
-                            "en" -> "영어"
-                            "ja" -> "일본어"
-                            "ja-Latn" -> "일본어"
-                            "zh" -> "중국어"
-                            "zh-Latn" -> "중국어"
-                            "de" -> "독일어"
-                            "fr" -> "프랑스어"
-                            else -> "자동 감지"
+                        when (language) {
+                            "ko" -> {
+                                targetLang = "한국어"
+                                sourceLanguage = TranslateLanguage.KOREAN
+                            }
+                            "en" -> {
+                                targetLang = "영어"
+                                sourceLanguage = TranslateLanguage.ENGLISH
+                            }
+                            "ja" -> {
+                                targetLang = "일본어"
+                                sourceLanguage = TranslateLanguage.JAPANESE
+                            }
+                            "ja-Latn" -> {
+                                targetLang = "일본어"
+                                sourceLanguage = TranslateLanguage.JAPANESE
+                            }
+                            "zh" -> {
+                                targetLang = "중국어"
+                                sourceLanguage = TranslateLanguage.CHINESE
+                            }
+                            "zh-Latn" -> {
+                                targetLang = "중국어"
+                                sourceLanguage = TranslateLanguage.CHINESE
+                            }
+                            "de" -> {
+                                targetLang = "독일어"
+                                sourceLanguage = TranslateLanguage.GERMAN
+                            }
+                            "fr" -> {
+                                targetLang = "프랑스어"
+                                sourceLanguage = TranslateLanguage.FRENCH
+                            }
+                            else -> targetLang = "자동 감지"
                         }
                     }
                 }
@@ -85,22 +143,6 @@ fun MainScreen(navController: NavController) {
         }
 
 
-    val engilshKoreanTranslator = remember {
-        val options = TranslatorOptions.Builder()
-            .setSourceLanguage(TranslateLanguage.ENGLISH)
-            .setTargetLanguage(TranslateLanguage.KOREAN)
-            .build()
-        Translation.getClient(options)
-    }
-    LaunchedEffect(engilshKoreanTranslator) {
-        var conditions = DownloadConditions.Builder()
-            .build()
-        engilshKoreanTranslator.downloadModelIfNeeded(conditions)
-            .addOnSuccessListener {
-            }
-            .addOnFailureListener {
-            }
-    }
 
 
     Column(
@@ -129,10 +171,12 @@ fun MainScreen(navController: NavController) {
                 modifier = Modifier
                     .weight(1f)
             ) {
-                Text(text = targetLang,
+                Text(
+                    text = targetLang,
                     textAlign = TextAlign.Center,
                     fontSize = 20.sp,
-                    modifier = Modifier.fillMaxWidth())
+                    modifier = Modifier.fillMaxWidth()
+                )
             }
             Button(
                 onClick = {},
@@ -155,7 +199,13 @@ fun MainScreen(navController: NavController) {
                     .fillMaxWidth()
                     .weight(1.2f)
             ) {
-                TransLanguageMenu()
+                TransLanguageMenu(
+                    selectedLanguage = selectedLanguage,
+                    onLanguageChange = { languageName, languageCode ->
+                        selectedLanguage = languageName
+                        selectedLanguageCode = languageCode
+                    }
+                )
             }
             Box(
                 modifier = Modifier
@@ -174,7 +224,7 @@ fun MainScreen(navController: NavController) {
                 value = text,
                 onValueChange = { text = it },
                 shape = RoundedCornerShape(10.dp),
-                textStyle = TextStyle(fontSize = 20.sp),
+                textStyle = TextStyle(fontSize = 20.sp, color = Color.Black),
                 modifier = Modifier
                     .fillMaxSize()
             )
@@ -186,10 +236,6 @@ fun MainScreen(navController: NavController) {
                 .weight(4f)
                 .background(color = Color.White)
         ) {
-            engilshKoreanTranslator.translate(text)
-                .addOnSuccessListener { translatedText ->
-                    outputText = translatedText
-                }
             Text(
                 outputText,
                 fontSize = 20.sp,
@@ -215,8 +261,13 @@ fun MainScreen(navController: NavController) {
                     contentDescription = "음성 인식",
                     modifier = Modifier
                         .size(40.dp)
+                        .weight(1f)
                 )
-                Text("음성")
+                Text(
+                    "음성",
+                    color = Color.White,
+                    modifier = Modifier.weight(0.5f)
+                )
             }
         }
         Button(
@@ -238,10 +289,16 @@ fun MainScreen(navController: NavController) {
                     contentDescription = "이미지",
                     modifier = Modifier
                         .size(40.dp)
+                        .weight(1f)
                 )
-                Text("이미지")
+                Text(
+                    "이미지",
+                    color = Color.White,
+                    modifier = Modifier.weight(0.5f)
+                )
             }
 
         }
     }
+
 }
