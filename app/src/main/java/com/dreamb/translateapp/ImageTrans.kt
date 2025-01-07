@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.provider.MediaStore
+import android.speech.tts.TextToSpeech
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
@@ -34,7 +35,9 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -53,6 +56,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.navigation.NavController
 import coil3.compose.rememberAsyncImagePainter
 import com.google.mlkit.common.model.DownloadConditions
 import com.google.mlkit.nl.languageid.LanguageIdentification
@@ -65,24 +69,31 @@ import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.korean.KoreanTextRecognizerOptions
 import java.io.IOException
 
-@Preview(showBackground = true)
 @Composable
-fun ImageTrans() {
+fun ImageTrans(navController: NavController) {
     var text by remember { mutableStateOf("") }
     var imageUri by remember { mutableStateOf<Uri?>(null) }
-    var outputText by remember { mutableStateOf("") }
-    var targetLang by remember { mutableStateOf("") }
-    var sourceLanguage by remember { mutableStateOf(TranslateLanguage.KOREAN) }
+    val outputText = remember { mutableStateOf("") }
+    val targetLang = remember { mutableStateOf("언어감지") }
+    val sourceLanguage = remember { mutableStateOf(TranslateLanguage.KOREAN) }
     val context = LocalContext.current
-    var selectedLanguage by remember { mutableStateOf("한국어") }
-    var selectedLanguageCode by remember { mutableStateOf(TranslateLanguage.KOREAN) }
-    val translator = remember(sourceLanguage, selectedLanguageCode) {
-        val options = TranslatorOptions.Builder()
-            .setSourceLanguage(sourceLanguage)
-            .setTargetLanguage(selectedLanguageCode)
-            .build()
-        Translation.getClient(options)
+    val selectedLanguage = remember { mutableStateOf("한국어") }
+    val selectedLanguageCode = remember { mutableStateOf(TranslateLanguage.KOREAN) }
+    val tts = remember {
+        TextToSpeech(context) { status ->
+            if (status != TextToSpeech.SUCCESS) {
+            }
+        }
     }
+
+    // Dispose TTS when no longer needed
+    DisposableEffect(Unit) {
+        onDispose {
+            tts.stop()
+            tts.shutdown()
+        }
+    }
+
     val pickMedia =
         rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
             if (uri != null) {
@@ -106,92 +117,8 @@ fun ImageTrans() {
             }
         }
     }
-    val languageIdentifier = remember {
-        LanguageIdentification.getClient(
-            LanguageIdentificationOptions.Builder()
-                .setConfidenceThreshold(0.5f)
-                .build()
-        )
-    }
-    LaunchedEffect(imageUri) {
-        if (text.isNotEmpty()) {
-            languageIdentifier.identifyLanguage(text)
-                .addOnSuccessListener { languageCode ->
-                    when (languageCode) {
-                        "ko" -> {
-                            targetLang = "한국어"
-                            sourceLanguage = TranslateLanguage.KOREAN
-                        }
-
-                        "en" -> {
-                            targetLang = "영어"
-                            sourceLanguage = TranslateLanguage.ENGLISH
-                        }
-
-                        "ja" -> {
-                            targetLang = "일본어"
-                            sourceLanguage = TranslateLanguage.JAPANESE
-                        }
-
-                        "ja-Latn" -> {
-                            targetLang = "일본어"
-                            sourceLanguage = TranslateLanguage.JAPANESE
-                        }
-
-                        "zh" -> {
-                            targetLang = "중국어"
-                            sourceLanguage = TranslateLanguage.CHINESE
-                        }
-
-                        "zh-Latn" -> {
-                            targetLang = "중국어"
-                            sourceLanguage = TranslateLanguage.CHINESE
-                        }
-
-                        "de" -> {
-                            targetLang = "독일어"
-                            sourceLanguage = TranslateLanguage.GERMAN
-                        }
-
-                        "fr" -> {
-                            targetLang = "프랑스어"
-                            sourceLanguage = TranslateLanguage.FRENCH
-                        }
-
-                        else -> targetLang = "자동 감지"
-                    }
-                }
-                .addOnFailureListener {
-                    val toast = Toast.makeText(context, "모델을 불러올 수 없음.", Toast.LENGTH_SHORT)
-                    toast.show()
-                }
-        }
-    }
-
-
-    // Download translator model
-    LaunchedEffect(translator) {
-        val conditions = DownloadConditions.Builder().build()
-        translator.downloadModelIfNeeded(conditions)
-            .addOnSuccessListener {
-            }
-            .addOnFailureListener {
-            }
-    }
-
-    // Translate text whenever input text changes
-    LaunchedEffect(text, selectedLanguageCode) {
-        if (text.isNotEmpty()) {
-            translator.translate(text)
-                .addOnSuccessListener { translatedText ->
-                    outputText = translatedText
-                }
-                .addOnFailureListener {
-                }
-        } else {
-            outputText = ""
-        }
-    }
+    MakeTranslator(sourceLanguage, selectedLanguageCode.value, text, outputText)
+    ScanLanguage(text, targetLang, sourceLanguage, context)
 
     // Camera Launcher 설정
     val permissionLauncher = rememberLauncherForActivityResult(
@@ -222,69 +149,21 @@ fun ImageTrans() {
             .background(color = Color(0xffdddddd))
     ) {
         Row(
-            horizontalArrangement = Arrangement.SpaceAround,
-            verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(0.6f)
                 .background(color = Color(0xffdddddd))
         ) {
-            Image(
-                painter = painterResource(R.drawable.menu_btn),
-                contentDescription = "메뉴 열기",
-                modifier = Modifier
-                    .size(40.dp)
-                    .weight(1f)
+            UpperNavBar(
+                text,
+                targetLang,
+                sourceLanguage,
+                context,
+                outputText = outputText.value,
+                selectedLanguage,
+                selectedLanguageCode,
+                navController
             )
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-            ) {
-                Text(
-                    text = targetLang,
-                    fontSize = 20.sp,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
-            Button(
-                onClick = {
-
-                },
-                border = BorderStroke(5.dp, Color.LightGray),
-                colors = ButtonDefaults.buttonColors(containerColor = Color.White),
-                modifier = Modifier
-                    .wrapContentWidth()
-                    .weight(1.5f)
-                    .padding(horizontal = 10.dp)
-            ) {
-                Image(
-                    painter = painterResource(R.drawable.switch_horizontal_svgrepo_com),
-                    contentDescription = "언어 서로 바꾸기",
-                    contentScale = ContentScale.Fit,
-                    modifier = Modifier
-                        .size(20.dp)
-                )
-            }
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1.2f)
-            ) {
-                TransLanguageMenu(
-                    selectedLanguage = selectedLanguage,
-                    onLanguageChange = { languageName, languageCode ->
-                        selectedLanguage = languageName
-                        selectedLanguageCode = languageCode
-                    }
-                )
-            }
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(0.8f)
-            )
-
         }
         Box(
             contentAlignment = Alignment.Center,
@@ -335,16 +214,9 @@ fun ImageTrans() {
                             color = Color.LightGray
                         )
                 ) {
-                    Text(
-                        outputText,
-                        fontSize = 20.sp,
-                        modifier = Modifier
-                            .padding(10.dp)
-                            .verticalScroll(rememberScrollState())
-                    )
+                    OutputTextAndTtsBtn(tts, outputText.value, selectedLanguage.value, context)
                 }
             }
-
         }
         Button(
             onClick = {
@@ -356,26 +228,7 @@ fun ImageTrans() {
                 .fillMaxWidth()
                 .weight(1f)
         ) {
-            Column(
-                verticalArrangement = Arrangement.Center,
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier
-                    .fillMaxHeight()
-            ) {
-                Image(
-                    painter = painterResource(R.drawable.photo_svgrepo_com),
-                    contentDescription = "이미지",
-                    modifier = Modifier
-                        .size(40.dp)
-                        .weight(1f)
-                )
-                Text(
-                    "이미지",
-                    color = Color.White,
-                    modifier = Modifier.weight(0.5f)
-                )
-            }
-
+            BtnContent(R.drawable.gallery_icon, "갤러리", "갤러리", 40)
         }
         Button(
             onClick = {
@@ -400,26 +253,8 @@ fun ImageTrans() {
                 .fillMaxWidth()
                 .weight(1f)
         ) {
-            Column(
-                verticalArrangement = Arrangement.Center,
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Image(
-                    painter = painterResource(R.drawable.camera),
-                    contentDescription = "촬영",
-                    modifier = Modifier
-                        .size(50.dp)
-                        .weight(1f)
-                )
-                Text(
-                    "사진 촬영",
-                    color = Color.White,
-                    modifier = Modifier.weight(0.5f)
-                )
-            }
-
+            BtnContent(R.drawable.camera, "카메라", "촬영하기", 50)
         }
-
     }
 }
 
