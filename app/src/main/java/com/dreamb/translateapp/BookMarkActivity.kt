@@ -35,17 +35,24 @@ import androidx.navigation.NavController
 import androidx.room.Room
 import com.dreamb.translateapp.model.AppDatabase
 import com.dreamb.translateapp.model.MyDb
+import com.dreamb.translateapp.model.SentenceDao
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 @Composable
 fun BookMarkList(navController: NavController) {
     val context = LocalContext.current
     val db = remember { MyDb.getDatabase(context) }
     val scrollState = rememberScrollState()
+    val scope = rememberCoroutineScope()
+
     Column {
-        Column (modifier = Modifier
-            .weight(8.5f)
-            .verticalScroll(scrollState)
-            .fillMaxSize()){
+        Column(
+            modifier = Modifier
+                .weight(8.5f)
+                .verticalScroll(scrollState)
+                .fillMaxSize()
+        ) {
             val list by db.sentenceDao().getAll()
                 .collectAsStateWithLifecycle(emptyList())
             list.forEach { user ->
@@ -64,7 +71,7 @@ fun BookMarkList(navController: NavController) {
                     )
                     Text(
                         user.transSentence.toString(),
-                        fontSize = 20.sp,
+                        fontSize = 20   .sp,
                         modifier = Modifier.padding(start = 10.dp, bottom = 10.dp)
                     )
                 }
@@ -81,8 +88,22 @@ fun BookMarkList(navController: NavController) {
                 shape = RectangleShape,
                 modifier = Modifier
                     .fillMaxWidth()
+                    .weight(1f)
             ) {
                 BtnContent(R.drawable.undo_icon, "뒤로 가기", "뒤로 가기", 40)
+            }
+            Button(onClick = {
+                scope.launch(Dispatchers.IO) {
+                    val latestSentence = db.sentenceDao().getLatestSentence() // 최신 데이터 가져오기
+                    latestSentence?.let { db.sentenceDao().delete(it) } // 데이터가 존재하면 삭제
+                }
+            },
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xffff4444)),
+                shape = RectangleShape,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)) {
+                BtnContent(R.drawable.delete_icon, "삭제", "최근 목록 삭제", 40)
             }
         }
     }

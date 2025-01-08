@@ -16,12 +16,14 @@ object MyDb {
     private var instance: AppDatabase? = null
 
     fun getDatabase(context: Context): AppDatabase {
-        return instance ?: synchronized(this){     //동기화 처리
+        return instance ?: synchronized(this) {     //동기화 처리
             Room.databaseBuilder(
                 context,
                 AppDatabase::class.java, "room.db"
             )
                 .build()
                 .also { instance = it }    //also가 무엇인지 알아보기
-        }    }
+        }
+    }
+
 }

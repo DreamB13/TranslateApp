@@ -10,12 +10,16 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldColors
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
@@ -27,6 +31,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
@@ -61,19 +66,20 @@ fun MainScreen(navController: NavController) {
     MakeTranslator(sourceLanguage, selectedLanguageCode.value, text, outputText)
     ScanLanguage(text, targetLang, sourceLanguage, context)
 
+
     Column(
         verticalArrangement = Arrangement.Top,
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier
             .fillMaxSize()
-            .background(color = Color(0xffdddddd))
+            .background(color = colorResource(R.color.dropdownBackGround))
     ) {
         Row(
             horizontalArrangement = Arrangement.SpaceAround,
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
                 .fillMaxWidth()
-                .weight(0.6f)
+                .weight(0.8f)
                 .background(color = Color(0xffdddddd))
         ) {
             UpperNavBar(
@@ -91,23 +97,32 @@ fun MainScreen(navController: NavController) {
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(4f)
-                .background(color = Color.White)
+                .padding(10.dp)
         ) {
-            OutlinedTextField(
+            TextField(
                 value = text,
                 onValueChange = { text = it },
+                colors = TextFieldDefaults.colors(
+                    focusedIndicatorColor = Color.Transparent,
+                    unfocusedIndicatorColor = Color.Transparent,
+                    cursorColor = colorResource(R.color.textAndBtnColor),
+                    focusedContainerColor = colorResource(R.color.textBackGround),
+                    unfocusedContainerColor = colorResource(R.color.textBackGround)
+                ),
                 shape = RoundedCornerShape(10.dp),
-                textStyle = TextStyle(fontSize = 20.sp, color = Color.Black),
+                textStyle = TextStyle(fontSize = 20.sp, color = colorResource(R.color.textAndBtnColor)),
+                label = { Text("번역할 내용을 입력하세요.",color = colorResource(R.color.textAndBtnColor)) },
                 modifier = Modifier
                     .fillMaxSize()
+                    .background(color = colorResource(R.color.dropdownBackGround))
             )
         }
         Box(
             modifier = Modifier
-                .border(width = 2.dp, shape = RoundedCornerShape(10.dp), color = Color.LightGray)
                 .fillMaxWidth()
                 .weight(4f)
-                .background(color = Color.White)
+                .padding(5.dp)
+                .background(color = colorResource(R.color.dropdownBackGround))
         ) {
             OutputTextAndTtsBtn(tts, outputText.value, selectedLanguage.value, context)
         }

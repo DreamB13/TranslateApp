@@ -151,7 +151,7 @@ fun ImageTrans(navController: NavController) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .weight(0.6f)
+                .weight(0.8f)
                 .background(color = Color(0xffdddddd))
         ) {
             UpperNavBar(
@@ -218,42 +218,64 @@ fun ImageTrans(navController: NavController) {
                 }
             }
         }
-        Button(
-            onClick = {
-                pickMedia.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
-            },
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xff7777dd)),
-            shape = RectangleShape,
+        Row(
             modifier = Modifier
-                .fillMaxWidth()
                 .weight(1f)
+                .fillMaxWidth()
         ) {
-            BtnContent(R.drawable.gallery_icon, "갤러리", "갤러리", 40)
+            Button(
+                onClick = {
+                    pickMedia.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xff7777dd)),
+                shape = RectangleShape,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+            ) {
+                BtnContent(R.drawable.gallery_icon, "갤러리", "갤러리", 40)
+            }
+
+            Button(
+                onClick = {
+                    if (ContextCompat.checkSelfPermission(
+                            context,
+                            android.Manifest.permission.CAMERA
+                        ) ==
+                        PackageManager.PERMISSION_GRANTED
+                    ) {
+                        // 권한이 허용된 경우 카메라 실행
+                        val uri = createImageUri(context)
+                        cameraLauncher.launch(uri)
+                        imageUri = uri
+                    } else {
+                        // 권한 요청
+                        permissionLauncher.launch(android.Manifest.permission.CAMERA)
+                    }
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xff4444cc)),
+                shape = RectangleShape,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+            ) {
+                BtnContent(R.drawable.camera, "카메라", "촬영하기", 50)
+            }
         }
-        Button(
-            onClick = {
-                if (ContextCompat.checkSelfPermission(
-                        context,
-                        android.Manifest.permission.CAMERA
-                    ) ==
-                    PackageManager.PERMISSION_GRANTED
-                ) {
-                    // 권한이 허용된 경우 카메라 실행
-                    val uri = createImageUri(context)
-                    cameraLauncher.launch(uri)
-                    imageUri = uri
-                } else {
-                    // 권한 요청
-                    permissionLauncher.launch(android.Manifest.permission.CAMERA)
-                }
-            },
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xff4444cc)),
-            shape = RectangleShape,
+        Row(
             modifier = Modifier
-                .fillMaxWidth()
                 .weight(1f)
+                .fillMaxWidth()
         ) {
-            BtnContent(R.drawable.camera, "카메라", "촬영하기", 50)
+            Button(
+                onClick = { navController.navigateUp() },
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xffff8888)),
+                shape = RectangleShape,
+                modifier = Modifier
+                    .fillMaxWidth()
+            ) {
+                BtnContent(R.drawable.undo_icon, "뒤로 가기", "뒤로 가기", 40)
+            }
         }
     }
 }

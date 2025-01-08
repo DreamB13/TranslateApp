@@ -8,5 +8,5 @@ import androidx.room.PrimaryKey
 data class Sentence(
     @PrimaryKey(autoGenerate = true) val uid: Int = 0,
     @ColumnInfo(name = "oriSentence") val oriSentence: String?,
-    @ColumnInfo(name = "transSentence") val transSentence: String?
+    @ColumnInfo(name = "transSentence") val transSentence: String?,
 )

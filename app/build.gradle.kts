@@ -6,6 +6,8 @@ plugins {
     kotlin("plugin.serialization") version "2.0.21"
 
     id("com.google.devtools.ksp")
+    id("kotlin-kapt")
+    id("com.google.dagger.hilt.android")
 }
 
 android {
@@ -109,4 +111,10 @@ dependencies {
 
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.7")
 
+    implementation("com.google.dagger:hilt-android:2.51.1")
+    kapt("com.google.dagger:hilt-android-compiler:2.51.1")
+
+}
+kapt {
+    correctErrorTypes = true
 }

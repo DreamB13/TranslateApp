@@ -17,4 +17,6 @@ interface SentenceDao {
     @Delete
     fun delete(user: Sentence)
 
+    @Query("SELECT * FROM sentence ORDER BY uid DESC LIMIT 1")
+    fun getLatestSentence(): Sentence?
 }
