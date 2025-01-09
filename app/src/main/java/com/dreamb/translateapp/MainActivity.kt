@@ -12,6 +12,19 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedContentTransitionScope
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.core.EaseIn
+import androidx.compose.animation.core.EaseOut
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -21,6 +34,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -30,11 +44,21 @@ import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.DrawerState
+import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExtendedFloatingActionButton
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MenuItemColors
+import androidx.compose.material3.ModalDrawerSheet
+import androidx.compose.material3.ModalNavigationDrawer
+import androidx.compose.material3.NavigationDrawerItem
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
@@ -79,6 +103,7 @@ import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.korean.KoreanTextRecognizerOptions
 import dagger.hilt.android.AndroidEntryPoint
 import dagger.hilt.android.HiltAndroidApp
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import java.io.IOException
@@ -100,14 +125,49 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun MyApp() {
     val navController = rememberNavController()
-    NavHost(navController = navController, startDestination = "main") {
-        composable("main") {
+    NavHost(navController = navController, startDestination = "main",
+        enterTransition = { EnterTransition.None },
+        exitTransition = { ExitTransition.None }
+    ) {
+        composable("main", enterTransition = {
+            slideInHorizontally(animationSpec = tween(durationMillis = 500)) { fullWidth ->
+                // Offsets the content by 1/3 of its width to the left, and slide towards right
+                // Overwrites the default animation with tween for this slide animation.
+                fullWidth / 1
+            }
+        }, exitTransition = {
+            slideOutHorizontally(animationSpec = tween(durationMillis = 500)) { fullWidth ->
+                // Offsets the content by 1/3 of its width to the left, and slide towards right
+                // Overwrites the default animation with tween for this slide animation.
+                fullWidth / 1
+            }
+        }
+        ) {
             MainScreen(navController)
         }
-        composable("imageTranslate") {
+        composable("imageTranslate", enterTransition = {
+            slideInHorizontally(animationSpec = tween(durationMillis = 500)) { fullWidth ->
+                -fullWidth / 1
+            }
+        }, exitTransition = {
+            slideOutHorizontally(animationSpec = tween(durationMillis = 500)) { fullWidth ->
+                fullWidth / -1
+            }
+        }
+        ) {
             ImageTrans(navController)
         }
-        composable("bookMarkPage") {
+        composable("bookMarkPage", enterTransition = {
+            slideInHorizontally(animationSpec = tween(durationMillis = 500)) { fullWidth ->
+                -fullWidth / 1
+            }
+        },
+            exitTransition = {
+                slideOutHorizontally(animationSpec = tween(durationMillis = 500)) { fullWidth ->
+                    fullWidth / -1
+                }
+            }
+        ) {
             BookMarkList(navController)
         }
     }
@@ -121,47 +181,49 @@ fun TransLanguageMenu(
     modifier: Modifier = Modifier
 ) {
     var expandedLang by remember { mutableStateOf(false) }
-    Box(modifier = modifier
-        .fillMaxSize(),
-        contentAlignment = Alignment.Center){
-    TextButton(
-        onClick = { expandedLang = !expandedLang },
-        modifier = Modifier
-            .fillMaxWidth()
+    Box(
+        modifier = modifier
+            .fillMaxSize(),
+        contentAlignment = Alignment.Center
     ) {
-        Text(
-            selectedLanguage,
-            fontSize = 20.sp,
-            color = colorResource(R.color.textAndBtnColor),
-        )
-    }
-    DropdownMenu(
-        expanded = expandedLang,
-        onDismissRequest = { expandedLang = false },
-        offset = DpOffset(0.dp,0.dp),
-        modifier = Modifier
-            .background(color = colorResource(R.color.dropdownBackGround)),
-    ) {
-        val languageMap = mapOf(
-            "한국어" to TranslateLanguage.KOREAN,
-            "영어" to TranslateLanguage.ENGLISH,
-            "일본어" to TranslateLanguage.JAPANESE,
-            "중국어" to TranslateLanguage.CHINESE,
-            "프랑스어" to TranslateLanguage.FRENCH,
-            "독일어" to TranslateLanguage.GERMAN
-        )
-        languageMap.forEach { (languageName, languageCode) ->
-            DropdownMenuItem(
-                text = { Text(languageName, color = colorResource(R.color.textAndBtnColor)) },
-                onClick = {
-                    onLanguageChange(languageName, languageCode) // 선택된 언어와 코드 전달
-                    expandedLang = false
-                }
+        TextButton(
+            onClick = { expandedLang = !expandedLang },
+            modifier = Modifier
+                .fillMaxWidth()
+        ) {
+            Text(
+                selectedLanguage,
+                fontSize = 20.sp,
+                color = colorResource(R.color.textAndBtnColor),
             )
+        }
+        DropdownMenu(
+            expanded = expandedLang,
+            onDismissRequest = { expandedLang = false },
+            offset = DpOffset(0.dp, 0.dp),
+            modifier = Modifier
+                .background(color = colorResource(R.color.dropdownBackGround)),
+        ) {
+            val languageMap = mapOf(
+                "한국어" to TranslateLanguage.KOREAN,
+                "영어" to TranslateLanguage.ENGLISH,
+                "일본어" to TranslateLanguage.JAPANESE,
+                "중국어" to TranslateLanguage.CHINESE,
+                "프랑스어" to TranslateLanguage.FRENCH,
+                "독일어" to TranslateLanguage.GERMAN
+            )
+            languageMap.forEach { (languageName, languageCode) ->
+                DropdownMenuItem(
+                    text = { Text(languageName, color = colorResource(R.color.textAndBtnColor)) },
+                    onClick = {
+                        onLanguageChange(languageName, languageCode) // 선택된 언어와 코드 전달
+                        expandedLang = false
+                    }
+                )
+            }
         }
     }
 }
-    }
 
 @Composable
 fun ScanLanguage(
@@ -271,10 +333,10 @@ fun UpperNavBar(
     outputText: String,
     selectedLanguage: MutableState<String>,
     selectedLanguageCode: MutableState<String>,
-    navController: NavController
+    drawerState: DrawerState,
+    scope: CoroutineScope,
 ) {
     val db = remember { MyDb.getDatabase(context) }
-    val isexpanded = remember { mutableStateOf(false) }
     ScanLanguage(text, targetLang, sourceLanguage, context)
 
     Row(
@@ -284,7 +346,18 @@ fun UpperNavBar(
             .fillMaxWidth()
             .background(color = colorResource(R.color.upperNavBackGround))
     ) {
-        OpenMenuBtn(modifier = Modifier.weight(1f), isexpanded, navController)
+        Image(
+            painter = painterResource(R.drawable.menu_btn),
+            contentDescription = "메뉴 열기",
+            modifier = Modifier
+                .size(40.dp)
+                .weight(1f)
+                .clickable {
+                    scope.launch {
+                        drawerState.open()
+                    }
+                }
+        )
         Box(
             modifier = Modifier
                 .weight(1f)
@@ -326,36 +399,35 @@ fun UpperNavBar(
                 .weight(1.2f)
                 .align(Alignment.CenterVertically)
         )
-        val scope = rememberCoroutineScope()
-        Box(
+        Image(
+            painter = painterResource(R.drawable.bookmark_icon),
+            contentDescription = "북마크 저장",
             modifier = Modifier
-                .fillMaxSize()
                 .weight(0.8f)
-        ) {
-            Button(onClick = {
-                if (text == "" || outputText == "") {
-                    Toast.makeText(context, "저장할 수 없습니다.", Toast.LENGTH_SHORT).show()
-                } else {
-                    Toast.makeText(context, "저장되었습니다.", Toast.LENGTH_SHORT).show()
-                    scope.launch(Dispatchers.IO) {
-                        db.sentenceDao().insertAll(
-                            Sentence(
-                                oriSentence = text,
-                                transSentence = outputText,
-                            )
-                        )
+                .fillMaxSize()
+                .padding(10.dp)
+                .clickable {
+                    if (text == "" || outputText == "") {
+                        Toast
+                            .makeText(context, "저장할 수 없습니다.", Toast.LENGTH_SHORT)
+                            .show()
+                    } else {
+                        Toast
+                            .makeText(context, "저장되었습니다.", Toast.LENGTH_SHORT)
+                            .show()
+                        scope.launch(Dispatchers.IO) {
+                            db
+                                .sentenceDao()
+                                .insertAll(
+                                    Sentence(
+                                        oriSentence = text,
+                                        transSentence = outputText,
+                                    )
+                                )
+                        }
                     }
                 }
-            },
-                colors = ButtonDefaults.buttonColors(containerColor = colorResource(R.color.upperNavBackGround)),
-                modifier = Modifier.fillMaxSize()) {
-                Image(
-                    painter = painterResource(R.drawable.bookmark_icon),
-                    contentDescription = "북마크 저장",
-                    modifier = Modifier.fillMaxSize()
-                )
-            }
-        }
+        )
     }
 }
 
@@ -400,14 +472,25 @@ fun OutputTextAndTtsBtn(
     selectedLanguage: String,
     context: Context
 ) {
-    Box(modifier = Modifier
-        .background(color = colorResource(R.color.dropdownBackGround), shape = RoundedCornerShape(16.dp))
-        .border(5.dp,color = colorResource(R.color.dropdownBackGround), shape = RoundedCornerShape(16.dp))
-        .padding(5.dp)){
+
+    Box(
+        modifier = Modifier
+            .background(
+                color = colorResource(R.color.dropdownBackGround),
+                shape = RoundedCornerShape(16.dp)
+            )
+            .border(
+                5.dp,
+                color = colorResource(R.color.dropdownBackGround),
+                shape = RoundedCornerShape(16.dp)
+            )
+            .padding(5.dp)
+    ) {
         Text(
             outputText,
             fontSize = 20.sp,
             textAlign = TextAlign.Start,
+            color = colorResource(R.color.textAndBtnColor),
             modifier = Modifier
                 .fillMaxSize()
                 .background(color = colorResource(R.color.textfieldBackGround))
@@ -448,6 +531,7 @@ fun BtnContent(photoId: Int, contentDescription: String, text: String, size: Int
         )
         Text(
             text,
+            fontSize = 10.sp,
             color = Color.White,
             modifier = Modifier.weight(0.5f)
         )
@@ -455,31 +539,44 @@ fun BtnContent(photoId: Int, contentDescription: String, text: String, size: Int
 }
 
 @Composable
-fun OpenMenuBtn(
-    modifier: Modifier = Modifier,
-    isexpanded: MutableState<Boolean>,
-    navController: NavController
-) {
-    Image(
-        painter = painterResource(R.drawable.menu_btn),
-        contentDescription = "메뉴 열기",
-        modifier = modifier
-            .size(40.dp)
-            .clickable { isexpanded.value = !isexpanded.value }
-    )
-    DropdownMenu(
-        expanded = isexpanded.value,
-        onDismissRequest = { isexpanded.value = false },
+fun MenuScreen(navController: NavController, scope: CoroutineScope, drawerState: DrawerState) {
+    Column(
+        horizontalAlignment = Alignment.Start,
+        verticalArrangement = Arrangement.Top,
         modifier = Modifier
-            .background(color = colorResource(R.color.dropdownBackGround)),
+            .background(color = colorResource(R.color.upperNavBackGround))
+            .fillMaxSize()
     ) {
-        DropdownMenuItem(onClick = {
-            navController.navigate("bookMarkPage") {
-                popUpTo("MainScreen") { inclusive = false } // 이전 스택 유지하지 않음
-                launchSingleTop = true // 중복된 화면 방지
-            }
-            isexpanded.value = false
-        },
-            text = { Text("기록 보기", color = colorResource(R.color.textAndBtnColor)) })
+        Text(
+            "메뉴", color = colorResource(R.color.textAndBtnColor),
+            modifier = Modifier
+                .weight(1f)
+                .padding(start = 10.dp, top = 20.dp)
+                .fillMaxSize()
+        )
+        Button(
+            onClick = {
+                navController.navigate("bookMarkPage") {
+                    popUpTo("MainScreen") { inclusive = false } // 이전 스택 유지하지 않음
+                    launchSingleTop = true // 중복된 화면 방지
+                }
+                scope.launch {
+                    drawerState.close() // Drawer 상태를 Open으로 변경
+                }
+
+            },
+            colors = ButtonDefaults.buttonColors(containerColor = colorResource(R.color.textBackGround)),
+            shape = RectangleShape,
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f)
+        ) {
+            Text(
+                "기록 보기",
+                modifier = Modifier.fillMaxWidth(),
+                color = colorResource(R.color.textAndBtnColor)
+            )
+        }
+        Spacer(modifier = Modifier.weight(8f))
     }
 }

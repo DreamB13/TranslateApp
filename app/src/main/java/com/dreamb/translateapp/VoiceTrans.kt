@@ -14,6 +14,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -38,6 +39,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
@@ -78,10 +80,10 @@ fun SpeechToText(
             }
             speechRecognizerLauncher.launch(intent)
         },
-        shape = RectangleShape,
-        colors = ButtonDefaults.buttonColors(containerColor = Color(0xffff8888)),
+        colors = ButtonDefaults.buttonColors(containerColor = colorResource(R.color.textBackGround)),
         modifier = modifier
             .fillMaxSize()
+            .padding(horizontal = 20.dp)
     ) {
         BtnContent(R.drawable.mic_svgrepo_com, "녹음", "녹음", 40)
     }
