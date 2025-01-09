@@ -41,7 +41,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DrawerState
@@ -495,6 +497,7 @@ fun OutputTextAndTtsBtn(
                 .fillMaxSize()
                 .background(color = colorResource(R.color.textfieldBackGround))
                 .padding(5.dp)
+                .verticalScroll(rememberScrollState())
         )
         Button(
             onClick = {
